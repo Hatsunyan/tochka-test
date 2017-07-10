@@ -30,5 +30,5 @@ try
 {
    //При любых ошибках ловим ошибку и пишем в лог или шлем на почти
     $errorController = new App\Controller\ControllerError();
-    $errorController->index();
+    $errorController->index($e->getMessage());
 }
