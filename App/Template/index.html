@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <link href="/Public/css/style.css" type="text/css" rel="stylesheet">
+    <script src="//cdnjs.cloudflare.com/ajax/libs/list.js/1.5.0/list.min.js"></script>
+
+    <title>Title</title>
+</head>
+<body>
+<div class="modal-layer">
+    <div class="modal-window">
+        <h2>Информация о задаче</h2>
+        <div class="info">
+            <div class="input-block">
+                <label for="label-title">Заголовок</label>
+                <input type="text" id="label-title" value="1">
+            </div>
+            <div class="input-block">
+                <label for="label-date">Дата</label>
+                <input type="text" id="label-date" value="1">
+            </div>
+            <div class="input-block">
+                <label for="label-author">Автор</label>
+                <input type="text" id="label-author" value="1">
+            </div>
+            <div class="input-block">
+                <label for="label-status">Статус</label>
+                <input type="text" id="label-status" value="1">
+            </div>
+            <div class="input-block">
+                <label for="label-description">Описание</label>
+                <input type="text" id="label-description" value="1">
+            </div>
+        </div>
+        <button class="close-modal">Закрыть</button>
+    </div>
+</div>
+<div class="all">
+    <div id="tasks">
+        <input class="search" placeholder="Найти задачу">
+        <table>
+            <thead>
+            <tr>
+                <th class="id">Номер задачи</th>
+                <th class="title">Заголовок</th>
+                <th class="date">Дата выполнения</th>
+            </tr>
+            </thead>
+            <tbody class="list">
+                <tr>
+                    <td class="id">0</td>
+                    <td class="title">0</td>
+                    <td class="date">0</td>
+                </tr>
+            </tbody>
+        </table>
+        <ul class="pagination"></ul>
+    </div>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/list.js/1.5.0/list.min.js"></script>
+</div>
+
+<script>
+    var url = '/api/v1/task';
+    var taskList;
+    var allTasks;
+    var App = {};
+    var modal;
+
+    document.addEventListener("DOMContentLoaded", function()
+    {
+        taskList = new List('tasks', {
+            valueNames: ['title','id','date'],
+            page: 10,
+            pagination: true
+        });
+
+        App.request.post(url,null,function(result)
+        {
+            allTasks = JSON.parse(result);
+            App.makeItemsFromArray(allTasks);
+        });
+        var list = document.querySelector('.list');
+        list.addEventListener('click',function(event)
+        {
+            var target = event.target;
+            if(target.tagName !== 'TD')
+            {
+                return;
+            }
+            var id = target.parentNode.querySelector('.id').innerText;
+            App.getItem(id);
+        });
+        modal = document.querySelector('.modal-layer');
+        var closeModal = document.querySelector('.close-modal');
+        closeModal.addEventListener('click',function()
+        {
+            modal.style.display = 'none';
+        });
+    });
+    //объект для запросов
+    App.request = (function()
+    {
+        var post = function(url,data,callback)
+        {
+            var result;
+            var xhr = new XMLHttpRequest();
+            xhr.open('POST',url,true);
+            xhr.setRequestHeader('Content-type', 'application/json; charset=utf-8');
+            xhr.send();
+            xhr.onreadystatechange = function() {
+                if (this.readyState !== 4)
+                {
+                    return
+                }else{
+                    result = this.responseText;
+                }
+
+                if(callback)
+                {
+                    callback(result);
+                }
+            }
+        };
+        return {
+            post: post
+        }
+    })();
+
+    //Обертка  localStorage
+    App.storage = (function()
+    {
+        var set = function(id,item)
+        {
+            localStorage.setItem(id,JSON.stringify(item));
+        };
+        var get = function (id)
+        {
+            var item = localStorage.getItem(id);
+            if(item === null)
+            {
+                return null;
+            }
+            item = JSON.parse(item);
+            if(item.expired < parseInt(new Date().getTime()/1000))
+            {
+                localStorage.removeItem(id);
+                return null;
+            }
+            return item;
+        };
+        return{
+           set:set,
+           get:get
+        }
+    })();
+
+    App.makeItemsFromArray = function(data)
+    {
+        var i = 1;
+        while (data[i] !== undefined)
+        {
+            taskList.add(
+                {
+                    id:data[i].id,
+                    title:data[i].title,
+                    date: data[i].date
+                });
+            i++;
+        }
+        taskList.remove('id',0);
+    };
+
+    App.getItem = function(id)
+    {
+        var item;
+        var storageItem = App.storage.get(id);
+        if(storageItem)
+        {
+            App.showItem(storageItem);
+            return;
+        }
+        App.request.post(url+'/'+id,null,function (result)
+        {
+            item = JSON.parse(result);
+            App.storage.set(id,item);
+            App.showItem(item);
+        });
+
+    };
+
+    //отображение элемента
+    App.showItem = function(data)
+    {
+        modal.querySelector('h2').innerText = 'Информация о задаче № '+data.id;
+        modal.querySelector('#label-title').value = data.title;
+        modal.querySelector('#label-date').value = data.date;
+        modal.querySelector('#label-author').value = data.author;
+        modal.querySelector('#label-status').value = data.status;
+        modal.querySelector('#label-description').value = data.description;
+        modal.style.display = 'block';
+    };
+
+    //данные быстро устаревают поэтому чистм localStorage при выходе
+    window.onunload = function()
+    {
+        event.preventDefault();
+        localStorage.clear();
+    };
+
+</script>
+</body>
+</html>
