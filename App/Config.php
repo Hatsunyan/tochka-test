@@ -4,7 +4,7 @@ namespace App;
 
 use App\DataStorage\StorageFactory;
 
-class Config
+abstract class Config
 {
     // типа хранилища
     protected static $storageType = StorageFactory::JSON;
